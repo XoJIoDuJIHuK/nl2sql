@@ -99,7 +99,7 @@ class MCPClient:
             "maybe empty or include some other products which is displayed "
             "in the database. There's plan on how much of each product "
             "to produce. Your task is to answer user's questions about "
-                "objects and data in the database"
+            "objects and data in the database"
         )
         messages = [
             {"role": "system", "content": system_prompt},
@@ -118,6 +118,7 @@ class MCPClient:
                 },
             }
             for tool in response.tools
+            if tool.name not in self.forbidden_tools
         ]
         self.logger.debug(
             "Available tools: %s",
