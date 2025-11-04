@@ -1,0 +1,8 @@
+what producers are there?
+what products are produced by each producer?
+provide nested hierarchy of all products needed to make 1 PC-B by producer C1. include subproducts recursively. show names, quantites and prerequisites (also recursively) # recursion alert! database will freeze because AI produces sql queries without base case handling
+what is current plan on PC-A product?
+предоставь перечень участников кластера
+какие продукты производятся в кластере
+какой участник производт продукцию PC-B?
+какие продукты и в каком количестве нужны для производства продукта PC-B производителем C1?
