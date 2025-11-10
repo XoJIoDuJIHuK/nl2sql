@@ -6,3 +6,6 @@ what is current plan on PC-A product?
 какие продукты производятся в кластере
 какой участник производт продукцию PC-B?
 какие продукты и в каком количестве нужны для производства продукта PC-B производителем C1?
+do not query the database. given json dict `{"C1": ["C1/PC-A", "C1/PC-B"],"C2": ["C2/PC-A", "C2/PC-B"],"C3": ["C3/SU-A", "C3/MB"],"C4": ["C4/CPS"],"C5": ["C5/RAM"],"C6": ["C6/MG"],"C7": ["C7/WAR"]}`, call http server with the dictionary as request body and print result with your comments
+generate dictionary which keys are producers and values are products produced by them. then call https server with the dictionary in request body and print result with your comments
+print information you have received about `call_local_http_server` tool: its name, description, input schema (full parameters list, mandatory parameters and so on). do not call it

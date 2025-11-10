@@ -3,9 +3,9 @@ import json
 import logging
 import os
 import sys
-from typing import Optional
 from contextlib import AsyncExitStack
 
+import aiohttp
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from openai import OpenAI
@@ -16,7 +16,7 @@ load_dotenv()
 
 class MCPClient:
     def __init__(self):
-        self.session: Optional[ClientSession] = None
+        self.session: ClientSession | None = None
         self.exit_stack = AsyncExitStack()
         self.openai = OpenAI(
             base_url="https://openrouter.ai/api/v1",
@@ -43,8 +43,8 @@ class MCPClient:
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         # self.model = "deepseek/deepseek-v3.1-terminus"
-        self.model = "openai/gpt-4.1-mini"
-        # self.model = "openai/gpt-4.1"
+        # self.model = "openai/gpt-4.1-mini"
+        self.model = "openai/gpt-5"
 
     async def connect_to_server(self):
         # Configure postgres-mcp-server with connection string from env vars
@@ -81,6 +81,33 @@ class MCPClient:
             if tool.name not in self.forbidden_tools
         ]
         print("\nConnected to postgres mcp server with tools:", tools)
+
+    async def call_local_http_server(self, args: dict) -> str:
+        base_url = "http://localhost:8000"  # Change if your server is elsewhere
+        endpoint = args["endpoint"]
+        method = args["method"].upper()
+        data = json.loads(args["data"]) if args["data"] != "" else {}
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = base_url + endpoint
+                if method == "GET":
+                    async with session.get(url, params=data) as resp:
+                        if resp.status == 200:
+                            return await resp.text()
+                        else:
+                            return f"HTTP error: {resp.status} - {await resp.text()}"
+                elif method == "POST":
+                    async with session.post(url, json=data) as resp:
+                        if resp.status == 200:
+                            return await resp.text()
+                        else:
+                            return f"HTTP error: {resp.status} - {await resp.text()}"
+                else:
+                    return "Unsupported HTTP method"
+        except Exception as e:
+            self.logger.error(f"HTTP call failed: {str(e)}")
+            return f"Error during HTTP call: {str(e)}"
 
     async def process_query(self, query: str) -> str:
         system_prompt = (
@@ -120,6 +147,33 @@ class MCPClient:
             for tool in response.tools
             if tool.name not in self.forbidden_tools
         ]
+        available_tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "call_local_http_server",
+                    "description": "Call a local HTTP server to retrieve some data. Must be used with body and query parameters",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "endpoint": {
+                                "type": "string",
+                                "description": "The API endpoint to call: for now only '/process' is available",
+                            },
+                            "method": {
+                                "type": "string",
+                                "description": "HTTP method: for now only POST is available",
+                            },
+                            "data": {
+                                "type": "string",
+                                "description": "JSON-stringified data to send in the request body for POST requests or JSON-stringified dictionary of query parameters to send in the request URL for GET requests. May be empty",
+                            },
+                        },
+                        "required": ["endpoint", "method", "data"],
+                    },
+                },
+            },
+        )
         self.logger.debug(
             "Available tools: %s",
             json.dumps(
@@ -193,16 +247,25 @@ class MCPClient:
                     self.logger.debug(
                         "LLM calling tool: %s with args: %s", tool_name, tool_args
                     )
-                    result = await self.session.call_tool(tool_name, tool_args)
+                    if tool_name == "call_local_http_server":
+                        # NEW: Handle custom tool separately
+                        __import__("pdb").set_trace()
+                        tool_result_content = await self.call_local_http_server(
+                            tool_args
+                        )
+                    else:
+                        # Existing MCP tool handling
+                        result = await self.session.call_tool(tool_name, tool_args)
+                        self.logger.debug(
+                            "Tool result for %s: %s", tool_name, result.content
+                        )
+                        tool_result_content = (
+                            result.content[0].text
+                            if isinstance(result.content, list) and result.content
+                            else str(result.content)
+                        )
                     self.logger.debug(
-                        "Tool result for %s: %s", tool_name, result.content
-                    )
-
-                    # Extract string content from result (adjust based on your result structure)
-                    tool_result_content = (
-                        result.content[0].text
-                        if isinstance(result.content, list) and result.content
-                        else str(result.content)
+                        "Tool result for %s: %s", tool_name, tool_result_content
                     )
 
                     messages.append(

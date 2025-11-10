@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiohttp>=3.13.2",
+    "fastapi>=0.121.1",
     "mcp>=1.17.0",
     "openai>=2.3.0",
     "postgres-mcp>=0.2.1",

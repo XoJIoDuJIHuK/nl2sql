@@ -1,0 +1,2 @@
+run-server:
+	uvicorn server:app --port 8000 --reload
