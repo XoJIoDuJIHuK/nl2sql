@@ -43,8 +43,11 @@ class MCPClient:
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         # self.model = "deepseek/deepseek-v3.1-terminus"
-        # self.model = "openai/gpt-4.1-mini"
-        self.model = "openai/gpt-5"
+        self.model = "openai/gpt-4.1-mini"
+        # self.model = "openai/gpt-5"
+
+        with open("./YYY04.md") as file:
+            self.system_prompt = file.read()
 
     async def connect_to_server(self):
         # Configure postgres-mcp-server with connection string from env vars
@@ -110,26 +113,26 @@ class MCPClient:
             return f"Error during HTTP call: {str(e)}"
 
     async def process_query(self, query: str) -> str:
-        system_prompt = (
-            "You are assistant capable of querying the database "
-            "and providing info based on its contents. Use neccessary "
-            "tools provided. You may execute select queries using "
-            "respective tool. Before making resulting queries to "
-            "the database, inspect its schema and objects to understand "
-            "user's request. User may use synonyms or names not used "
-            "in the database and your task is to understand that "
-            "and produce valid queries. If the user's query is ambiguos, "
-            "ask for clarification. "
-            "The context of the database is following: there's cluster "
-            "of producers. Each producer produces range of products (sets "
-            "of products may intersect). Prerequisites of each product "
-            "maybe empty or include some other products which is displayed "
-            "in the database. There's plan on how much of each product "
-            "to produce. Your task is to answer user's questions about "
-            "objects and data in the database"
-        )
+        # system_prompt = (
+        #     "You are assistant capable of querying the database "
+        #     "and providing info based on its contents. Use neccessary "
+        #     "tools provided. You may execute select queries using "
+        #     "respective tool. Before making resulting queries to "
+        #     "the database, inspect its schema and objects to understand "
+        #     "user's request. User may use synonyms or names not used "
+        #     "in the database and your task is to understand that "
+        #     "and produce valid queries. If the user's query is ambiguos, "
+        #     "ask for clarification. "
+        #     "The context of the database is following: there's cluster "
+        #     "of producers. Each producer produces range of products (sets "
+        #     "of products may intersect). Prerequisites of each product "
+        #     "maybe empty or include some other products which is displayed "
+        #     "in the database. There's plan on how much of each product "
+        #     "to produce. Your task is to answer user's questions about "
+        #     "objects and data in the database"
+        # )
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": query},
         ]
         if self.session is None:
@@ -147,33 +150,33 @@ class MCPClient:
             for tool in response.tools
             if tool.name not in self.forbidden_tools
         ]
-        available_tools.append(
-            {
-                "type": "function",
-                "function": {
-                    "name": "call_local_http_server",
-                    "description": "Call a local HTTP server to retrieve some data. Must be used with body and query parameters",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "endpoint": {
-                                "type": "string",
-                                "description": "The API endpoint to call: for now only '/process' is available",
-                            },
-                            "method": {
-                                "type": "string",
-                                "description": "HTTP method: for now only POST is available",
-                            },
-                            "data": {
-                                "type": "string",
-                                "description": "JSON-stringified data to send in the request body for POST requests or JSON-stringified dictionary of query parameters to send in the request URL for GET requests. May be empty",
-                            },
-                        },
-                        "required": ["endpoint", "method", "data"],
-                    },
-                },
-            },
-        )
+        # available_tools.append(
+        #     {
+        #         "type": "function",
+        #         "function": {
+        #             "name": "call_local_http_server",
+        #             "description": "Call a local HTTP server to retrieve some data. Must be used with body and query parameters",
+        #             "parameters": {
+        #                 "type": "object",
+        #                 "properties": {
+        #                     "endpoint": {
+        #                         "type": "string",
+        #                         "description": "The API endpoint to call: for now only '/process' is available",
+        #                     },
+        #                     "method": {
+        #                         "type": "string",
+        #                         "description": "HTTP method: for now only POST is available",
+        #                     },
+        #                     "data": {
+        #                         "type": "string",
+        #                         "description": "JSON-stringified data to send in the request body for POST requests or JSON-stringified dictionary of query parameters to send in the request URL for GET requests. May be empty",
+        #                     },
+        #                 },
+        #                 "required": ["endpoint", "method", "data"],
+        #             },
+        #         },
+        #     },
+        # )
         self.logger.debug(
             "Available tools: %s",
             json.dumps(

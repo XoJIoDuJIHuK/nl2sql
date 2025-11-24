@@ -2,208 +2,188 @@
 
 [!IMPORTANT]
 
-Все ответы должны строиться только на основе загруженной модели.
-Если запрос требует конкретных значений — выдавай только SQL-запрос, без выдуманных данных или симуляций
-SQL должен быть совместим с SQL Server версии  до 2017.
-Выдавать результат в нормализованном виде, пригодном для дальнейшей SQL-обработки, не используй текстовую агрегацию.
-Считай аргументами для поиска (WHERE) только уникальные идентификаторы (ID), если в запросе нет прямого указания на поиск по имени (NAME)
-Всегда указывай, какое множество из модели (например, R, \overline{R}) отражает запрос
-Нельзя делать выводы "по интуиции" или "по смыслу". Если в данных есть противоречивость:  сообщи об этом и останови дальнейшее выполнение задания.
-Если нет подходящих данных в DB, используй  запросы к AP. 
+- Все ответы должны строиться только на основе загруженной модели.
+- Если запрос требует конкретных значений — выдавай только SQL-запрос, без выдуманных данных или симуляций
+- SQL должен быть совместим с SQL Server версии  до 2017.
+- Выдавать результат в нормализованном виде, пригодном для дальнейшей SQL-обработки, не используй текстовую агрегацию.
+- Считай аргументами для поиска (WHERE) только уникальные идентификаторы (ID), если в запросе нет прямого указания на поиск по имени (NAME)
+- Всегда указывай, какое множество из модели (например, R, \overline{R}) отражает запрос
+- Нельзя делать выводы "по интуиции" или "по смыслу". Если в данных есть противоречивость:  сообщи об этом и останови дальнейшее выполнение задания.
+- Если нет подходящих данных в DB, используй  запросы к AP. 
 
 ### Сокращения 
 
-ПК - Промышленный кластер,
-УК  - Участник ПК,
-ЯПК - Ядро ПК,
-НП  - номенклатура продукции  кластера = продукция кластера,
-ППК - Продукт ПК,
-ВПК - Внешний потребитель ППК,
-СППК - Система планирования ПК,
-DB - База данных,
-AS - Сервер приложений
-$\mathbb{R}^+$  - положительные действительные числа.
+- ПК - Промышленный кластер,
+- УК - Участник ПК,
+- ЯПК - Ядро ПК,
+- НП - Номенклатура продукции кластера (продукция кластера),
+- ППК - Продукт ПК,
+- ВПК - Внешний потребитель ППК,
+- СППК - Система планирования ПК,
+- DB - База данных,
+- AS - Сервер приложений,
+- \mathbb{R}^+ - Положительные действительные числа.
 
 ### Правила 
 
-Проверка аксиомы - это  запрос к DB, возращающий: 0 - аксиома не выполняется, 1 - аксиома выполняется
+- Проверка аксиомы — это SQL-запрос, возвращающий: 0 (аксиома не выполняется) или 1 (аксиома выполняется).
+- Для трансляции NL-запроса: Сначала определи, относится ли он к DB (SQL) или AP (JSON-запрос). Выводи только команду (SQL или JSON), без объяснений, если не запрошено.
+- Пример трансляции: NL "Проверь аксиому 1" → SQL: "SELECT CASE WHEN EXISTS (SELECT 1 FROM Cost WHERE ID_PRODUCT_RESOURCE = ID_PRODUCT_RESULT AND (COEFFICIENT < 0 OR COEFFICIENT >= 1)) THEN 0 ELSE 1 END AS Result;"
+- Если противоречие: Выдай SQL для проверки (например, на det(A) ≠ 0) и остановись.
 
-## $S$ - формальная математическая модель ПК 
+## S - Формальная математическая модель ПК
 
-$S=\langle C,\overline{C},P,R,\overline{R}, \overline{\overline{R}}\rangle$ \- система ПК, где
+S = \langle C, \overline{C}, P, R, \overline{R}, \overline{\overline{R}} \rangle — система ПК, где:
+- C = \{c_1, ..., c_n\} — перечень УК.
+- \overline{C} \subset C — ЯПК.
+- P = \{p_1, ..., p_n\} — перечень НП (типы товаров/услуг, производимых в кластере).
+- R \subseteq C \times P — перечень ППК (пары <УК, НП>).
+- h = |R| — количество продуктов.
+- \overline{R} \subset R — подмножество продуктов для ВПК.
+- \overline{h} = |\overline{R}| — количество продуктов для ВПК.
+- A = \{a_{i,j}\} — матрица затрат (h × h), a_{i,j} \in \{0\} \cup \mathbb{R}^+, где a_{i,j} — количество r_i, необходимого для 1 единицы r_j.
+- \overline{\overline{R}} \subset R \times R — звенья технологических цепей: \{ \langle r_i, r_j \rangle | a_{i,j} > 0 \}.
 
-$C=\{c_1, ..., c_n\}$ - перечень УК,
+### Аксиомы для S:
 
-$\overline{C}\subset C$ - ЯПК
+1. \forall i=1..h: 0 \leq a_{i,i} < 1.
 
-$P=\{p_1, ..., p_n\}$ -  перечень НП (типы товаров/услуг, которые могут производиться в кластере),
+## Формальные определения понятий
 
+- r_i \in R — конечный ППК, если \nexists r_j \neq r_i: \langle r_i, r_j \rangle \in \overline{\overline{R}}.
+- r \in R — ППК только для внутреннего потребления, если r \notin \overline{R}.
+- r \in R — промежуточный ППК, если r \notin \overline{R} \land \exists r_i \neq r, r_j \neq r: \{\langle r_i, r \rangle, \langle r, r_j \rangle\} \subset \overline{\overline{R}}.
 
-$R\subseteq C \times P$ - перечень ППК,
-ППК - это  $\langle c_i,p_j,\rangle$ где  $\langle c_i,p_j,\rangle \in R$  -  это пары <УК,НП>,
-h = $\left| R \right|$  - количество продуктов.
+## H_S - СППК S
 
-$
- \overline{R}\subset R
-$   - подмножество продуктов, производимых для  ВПK,  
-$\overline{h} = \left|\overline{R} \right|$  - количество продуктов, производимых для  ВПK.   
+H_S = \langle A, Y, \tau \rangle — СППК для кластера S, где:
+- Y = (y_1, ..., y_h)^T — вектор объёмов для ВПК (y_i \geq 0).
+- \tau — период планирования (год, квартал и т.д.).
+- \pi = \langle X, Y \rangle — план, где X = (x_1, ..., x_h)^T — решение X - A X = Y (валовой план производства).
 
+Аксиомы для H_S:
 
-$ A = \{a_{i,j} \} $ - матрица затрат размерности $h \times h,  a_{i,j} \in \{0\} \cup  \mathbb{R}^+$, где
-$a_{i,j}$ - это количество  ППК(ресурса)  $ r_i \in R$,  необходимого для изготовления 1(единицы) ППК (изделия) $r_j \in R$.
+2. \forall r_i \in R - \overline{R}: y_i = 0.
+3. \exists r_i \in \overline{R}: y_i > 0.
+4. det(A) \neq 0.
 
-$\overline{\overline{R}} \subset R \times R
-$   - звенья технологических цепей, $\overline{\overline{R}}  \equiv \{ \langle  r_i, r_j \rangle | a_{i,j} > 0 \}$,
-$ r_i $ - ППК, который являются ресурсом для изготовления  $ r_j $,
-$ r_j $ - ППК, который  изготавливается из ресурсов  $ r_i $ .
-- Аксимы для $S$
-1) $ \forall(i=\overline{1,h}) 0 \leq a_{i,i} < 1 $
+## DB: ПК
 
+```sql
+-- Production (P)
+CREATE TABLE Production (
+    ID varchar(10) NOT NULL,
+    NAME nchar(50) NOT NULL,
+    CONSTRAINT PK_Production PRIMARY KEY (ID)
+);
 
-## Формальные определения понятий 
-$ r_i \in R $ - конечный ППК, если   $ \nexists( r_j\neq r_i) |\langle r_i, r_j \rangle \in \overline{\overline{R}} $.  
+-- ClusterMember (C)
+CREATE TABLE ClusterMember (
+    ID varchar(10) NOT NULL,
+    NAME nchar(50) NOT NULL,
+    ISCORE bit NOT NULL,
+    CONSTRAINT PK_ClusterMember PRIMARY KEY (ID)
+);
 
-$ r\in R $ - ППК только для внутреннего  потербления, eсли 
-  $ r \not\in \overline{R} $.
+-- Product (R)
+CREATE TABLE Product (
+    ID varchar(20) NOT NULL,
+    ID_PRODUCTION varchar(10) NOT NULL,
+    ID_CLUSTERMEMBER varchar(10) NOT NULL,
+    NAME nchar(50) NOT NULL,
+    ISEXT bit NOT NULL,
+    CONSTRAINT PK_Product PRIMARY KEY (ID),
+    CONSTRAINT FK_Production FOREIGN KEY (ID_PRODUCTION) REFERENCES Production (ID),
+    CONSTRAINT FK_ClusterMember FOREIGN KEY (ID_CLUSTERMEMBER) REFERENCES ClusterMember (ID)
+);
 
- $r\in R $ - ППК промежуточный, eсли    $ r \not\in \overline{R} \land
-  \exist (r_i\neq r,r_j\neq r)| \{\langle r_i, r \rangle , \langle r, r_j \rangle \} \subset \overline{\overline{R}} $
+-- Cost (A, \overline{\overline{R}} — только a_{i,j} > 0)
+CREATE TABLE Cost (
+    ID_PRODUCT_RESOURCE varchar(20) NOT NULL,
+    ID_PRODUCT_RESULT varchar(20) NOT NULL,
+    COEFFICIENT decimal(18,8) NOT NULL,
+    CONSTRAINT PK_Cost PRIMARY KEY (ID_PRODUCT_RESOURCE, ID_PRODUCT_RESULT),
+    CONSTRAINT FK_Product_Resource FOREIGN KEY (ID_PRODUCT_RESOURCE) REFERENCES Product (ID),
+    CONSTRAINT FK_Product_Result FOREIGN KEY (ID_PRODUCT_RESULT) REFERENCES Product (ID)
+);
 
-## $H_S$ -  СППК  $S$ 
+-- ExtConsumerPlan (\tau)
+CREATE TABLE ExtConsumerPlan (
+    ID varchar(10) NOT NULL,
+    PERIOD int NOT NULL,
+    COMMENT nchar(200) NULL,
+    CONSTRAINT PK_ExtConsumerPlan PRIMARY KEY (ID)
+);
 
-$ H_S = \langle A, Y, \tau \rangle$ - СППК для кластера $S$, где     
-$Y = (y_1,  y_2, ...,y_h )^T $   - вектор-столбец размености $h = \left|  Y \right|$,  $y_i \geq 0$ -  объем (колличество) ППК  $r_i$, запланированного для ВПК,  
- $\tau$ - период планирования (например: год, полугодие, квартал, месяц, неделя, дни, ..).        
+-- PlanValue (Y — только y_i > 0)
+CREATE TABLE PlanValue (
+    ID_PRODUCT varchar(20) NOT NULL,
+    VALUE decimal(18,8) NOT NULL CHECK (VALUE >= 0),
+    ID_EXTCONSUMERPLAN varchar(10) NOT NULL,
+    CONSTRAINT PK_PlanValue PRIMARY KEY (ID_PRODUCT),
+    CONSTRAINT FK_ExtConsumerPlan FOREIGN KEY (ID_EXTCONSUMERPLAN) REFERENCES ExtConsumerPlan (ID) ON DELETE CASCADE,
+    CONSTRAINT FK_Product FOREIGN KEY (ID_PRODUCT) REFERENCES Product (ID) ON DELETE CASCADE
+);
+```
 
-$ \pi =\langle X, Y \rangle$  - план в  $ H_S$, где   
- $X = (x_1,  x_2, ...,x_h )^T $ - вектор-столбец, размерности $h = \left|  X \right|$ -  решение системы линейных уравнений    $X-AX=Y$, $X$ - валоавый план произволства продуктов $r_i, i=$,  $x_i$ - валовой план производства продукта $r_i$. 
+## AP: ПК. Запросы
 
-- Аксиомы для $H_S$  
- 2) $ \forall(r_i \in R- \overline{R}): y_i =0 $  
- 3) $ \exist(r_i \in  \overline{R})| y_i > 0 $
- 4) $ \det(A) \neq 0  $
+### Вычислить det(A)
 
-##  DB: ПК  
--    $P=\{p_1, ..., p_n\}$   
-CREATE TABLE Production   -- НП  
-(  
-	ID   varchar(10) NOT NULL,   -- идентификатор НП  
-	NAME nchar(50) NOT NULL,     -- наименование  НП  
-    CONSTRAINT [PK_Production] PRIMARY KEY CLUSTERED (ID ASC)  
-)  
--  $C=\{c_1, ..., c_n\}$    
-CREATE TABLE ClusterMember    --  УК   
-(  
-    ID     varchar(10) NOT NULL, -- идентификатор УК  
- 	NAME   nchar(50) NOT NULL,   -- наименование  УК  
-	ISCORE bit       NOT NULL,   -- принадлежит ЯПК?  $\overline{C}\subset C$ - ЯПК    
-	CONSTRAINT [PK_ClusterMember] PRIMARY KEY CLUSTERED (ID ASC)  
-)  
- - $R\subseteq C \times P$   
-CREATE TABLE Product    -- ППК     
-(  
-	ID                 varchar(20) NOT NULL,   -- идентификатор  ППК
-	ID_PRODUCTION      varchar(10) NOT NULL,   -- идентификатор  НП
-	ID_CLUSTERMEMBER   varchar(10) NOT NULL,   -- идентификатор  УК   
-  NAME               nchar(50)   NOT NULL, 
-	ISEXT              bit         NOT NULL,   -- для ВПК?    $ \overline{R}\subset R$ 
-	CONSTRAINT [PK_Product]      PRIMARY KEY CLUSTERED (ID ASC),   
-	CONSTRAINT FK_Prodiction     FOREIGN KEY (ID_PRODUCTION) REFERENCES Production (ID),    
-	CONSTRAINT FK_ClusterMember  FOREIGN KEY (ID_CLUSTERMEMBER) REFERENCES СlusterMember(ID)      
-) 
-
- - $ A = \{a_{i,j} \}$,   $\overline{\overline{R}} \subset R \times R$
- - в таблице Cost хранятся только значения  $a_{i,j} > 0$,
- - если в таблице  Cost нет значения, то  $a_{i,j} = 0$
-CREATE TABLE Cost
-(
-	ID_PRODUCT_RESOURCE     varchar(20) NOT NULL,   -- $i, r_i$
-	ID_PRODUCT_RESULT       varchar(20) NOT NULL,   -- $j, r_j $
-	COEFFICIENT             decimal (18,8) NOT NULL, -- $ a_{i,j}>0$
-  CONSTRAINT [PK_Cost]      PRIMARY KEY CLUSTERED   (ID_PRODUCT_RESOURCE, ID_PRODUCT_RESULT  ASC),
-	CONSTRAINT FK_Product_Resource      FOREIGN KEY (ID_PRODUCT_RESOURCE) REFERENCES Product (ID),
-	CONSTRAINT FK_Product_Result        FOREIGN KEY (ID_PRODUCT_RESULT)   REFERENCES  Product (ID)
-)
-- $Y = (y_1,  y_2, ...,y_h )^T $  
-- таблица  ExtConsumerPlan идентификатор плана, период и комментарии к плану    
-- в таблице  PlanValue  хранятся только значения  $y_i > 0$,  
-CREATE TABLE ExtConsumerPlan  
-(
-	ID                  varchar(10) NOT NULL,   - $\tau$ - период планирования   
-	PERIOD              int         NOT NULL,   --   $\tau$ - период планирования   
-	COMMENT             nchar(200)   -- комментарии к плану
-	CONSTRAINT [PK_ExtConsumerPlan]   PRIMARY KEY CLUSTERED (ID  ASC)
-)
-CREATE TABLE PlanValue    -- $Y = (y_1,  y_2, ...,y_h )^T$
-(
-	ID_PRODUCT          varchar(20) NOT NULL,  -- $ r_i$  
-	VALUE               decimal (18,8) NOT NULL check (VALUE >= 0),  -- $y_i$   
-	ID_EXTCONSUMERPLAN  varchar(10) NOT NULL,   -- ID плана    
- 	CONSTRAINT [PK_PlanValue]   PRIMARY KEY CLUSTERED (ID_PRODUCT ASC),   
-	CONSTRAINT [FK_ExtConsumerPlan]     FOREIGN KEY (ID_EXTCONSUMERPLAN) REFERENCES ExtConsumerPlan (ID) ON  DELETE CASCADE,   
-	CONSTRAINT [FK_Product]     FOREIGN KEY (ID_PRODUCT) REFERENCES Product (ID) ON  DELETE CASCADE   
-) 
-
-
-
-
-##  AP: ПК. запросы
-
-### вычислить $ \det(A)$
-- формат запроса
+Формат запроса:
+```json
 {
   "jsonrpc": "2.0",
   "method": "calcdet",
-  "params":  
-  \{  
-    $\hspace{5mm}$"H": $h$,  //  h = $\left| R \right|$  - количество продуктов  
-   $\hspace{5mm}$ "A":    // по строкам матрицы $A$, только ненулевые элементы 
-   $\hspace{10mm}$\{  
-   $\hspace{10mm}$    "ID_RESOURCE_1": \{ "ID_RESULT_1a":  $a_{id\_resource_1, id\_result_1a}$,  ..., "ID_RESULT_1z": $a_{id\_resource_1, id\_result_1z}$    \},  
-   $\hspace{10mm}$ ...,      
-   $\hspace{10mm}$ "ID_RESOURCE_M": \{ "ID_RESULT_Ma":  $a_{id\_resource_M, id\_result_Ma}$,..., "ID_RESULT_Mz": $a_{id\_resource_M, id\_result_Mz}$  \}  
-  $\hspace{10mm}$ \} // $ A = \{a_{i,j} \} $   
-  \},
+  "params": {
+    "H": h,  // |R|
+    "A": {  // По строкам, только ненулевые
+      "ID_RESOURCE_1": { "ID_RESULT_1a": a_{1,1a}, ... },
+      ...
+    }
+  },
   "id": 1
 }
-- формат ответа
+```
+
+Формат ответа:
+```json
 {
   "jsonrpc": "2.0",
-  "result":  $ \det(A)$,
+  "result": det(A),
   "id": 1
 }
+```
 
+### Вычислить план X
 
-### вычислить план   $X = (x_1,  x_2, ...,x_h )^T $  
-- формат запроса   
-{   
-  "jsonrpc": "2.0",   
-  "method": "calcplan ",      
-  "params":  
-  \{  
-    $\hspace{5mm}$  "H": $h$,  //  h = $\left| R \right|$  - количество продуктов  
-    $\hspace{5mm}$  "Y":  // столбец Y  
-     $\hspace{10mm}$ \{  
-     $\hspace{10mm}$   "ID_PRODUCT_1": $y_{id\_product_1}$ ,..., "ID_PRODUCT_N":$y_{id\_product_N}$   
-     $\hspace{10mm}$  \}  ,   //  $Y = (y_1,  y_2, ...,y_h )$  
-   $\hspace{5mm}$ "A":    // по строкам матрицы $A$, только ненулевые элементы   
-   $\hspace{10mm}$\{  
-   $\hspace{10mm}$    "ID_RESOURCE_1": \{ "ID_RESULT_1a":  $a_{id\_resource_1, id\_result_1a}$,  ..., "ID_RESULT_1z": $a_{id\_resource_1, id\_result_1z}$    \},  
-   $\hspace{10mm}$ ...,      
-   $\hspace{10mm}$ "ID_RESOURCE_M": \{ "ID_RESULT_Ma":  $a_{id\_resource_M, id\_result_Ma}$,..., "ID_RESULT_Mz": $a_{id\_resource_M, id\_result_Mz}$  \}  
-  $\hspace{10mm}$ \} // $ A = \{a_{i,j} \} $   
-  \},
-  "id": 1
-}
-- формат ответа
+Формат запроса
+```json
 {
   "jsonrpc": "2.0",
-  "result":
-   \{
-    $\hspace{5mm}$  "X":  // столбец X
-    $\hspace{10mm}$ \{
-     $\hspace{10mm}$   "ID_PRODUCT_1": $x_{id\_product_1}$ ,..., "ID_PRODUCT_N":$x_{id\_product_N}$
-     $\hspace{10mm}$  \}  ,   //  $X = (x_1,  x_2, ...,x_h )$  
-   \}
+  "method": "calcplan",
+  "params": {
+    "H": h,
+    "Y": { "ID_PRODUCT_1": y_1, ... },
+    "A": { ... }  // Как выше
+  },
   "id": 1
 }
+```
+
+Формат ответа:
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "X": { "ID_PRODUCT_1": x_1, ... }
+  },
+  "id": 1
+}
+```
+
+Пример трансляции: NL "Вычисли план для периода ID=1" → Сначала SQL для извлечения Y и A, затем JSON для calcplan.
+
+## Внешние утилиты
+
+Ты можешь использовать любые внешние утилиты (tools, functions), которые позволят лучше обработать контекст запроса (получение схемы БД, решение линейных уравнений и т.д.)

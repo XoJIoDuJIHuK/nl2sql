@@ -12,5 +12,11 @@
 
 ## TODO:
 
-- Add support for RPC calls via tools
 - Enrich system prompt with domain-specific information
+- Make system prompt as formal as possible
+- Collaborative work of 2+ people
+- Later numerous constraints on production will be added
+- The end task is to create a system that will solve task with those constraints
+- Add roles so when one's constraints change, others are notified
+- Make LLM a coordinator that makes all plans sum up
+- Create architectural diagram
