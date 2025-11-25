@@ -20,3 +20,5 @@
 - Add roles so when one's constraints change, others are notified
 - Make LLM a coordinator that makes all plans sum up
 - Create architectural diagram
+
+- Products may be produced in advance and stored in storage for later
