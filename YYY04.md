@@ -70,60 +70,48 @@ H_S = \langle A, Y, \tau \rangle — СППК для кластера S, где:
 ## DB: ПК
 
 ```sql
--- Production (P)
-CREATE TABLE Production (
-    ID varchar(10) NOT NULL,
-    NAME nchar(50) NOT NULL,
-    CONSTRAINT PK_Production PRIMARY KEY (ID)
-);
+CREATE TABLE abstract_products (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR NOT NULL UNIQUE,
+)
+COMMENT ON TABLE production IS 'Abstract products that may be produced by cluster members into concrete products with different properties';
 
--- ClusterMember (C)
-CREATE TABLE ClusterMember (
-    ID varchar(10) NOT NULL,
-    NAME nchar(50) NOT NULL,
-    ISCORE bit NOT NULL,
-    CONSTRAINT PK_ClusterMember PRIMARY KEY (ID)
+CREATE TABLE producers (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(10) NOT NULL UNIQUE
 );
+COMMENT ON TABLE producers IS 'Producers that produce products and supply each other and provide products for external sales';
 
--- Product (R)
-CREATE TABLE Product (
-    ID varchar(20) NOT NULL,
-    ID_PRODUCTION varchar(10) NOT NULL,
-    ID_CLUSTERMEMBER varchar(10) NOT NULL,
-    NAME nchar(50) NOT NULL,
-    ISEXT bit NOT NULL,
-    CONSTRAINT PK_Product PRIMARY KEY (ID),
-    CONSTRAINT FK_Production FOREIGN KEY (ID_PRODUCTION) REFERENCES Production (ID),
-    CONSTRAINT FK_ClusterMember FOREIGN KEY (ID_CLUSTERMEMBER) REFERENCES ClusterMember (ID)
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    production_id INT REFERENCES abstract_products(id) NOT NULL,
+    producer_id INT REFERENCES producers(id) NOT NULL,
+    code VARCHAR(20) NOT NULL,
 );
+COMMENT ON TABLE products IS 'Concrete products produced by specific producer and being "implementations" of abstract products';
 
--- Cost (A, \overline{\overline{R}} — только a_{i,j} > 0)
-CREATE TABLE Cost (
-    ID_PRODUCT_RESOURCE varchar(20) NOT NULL,
-    ID_PRODUCT_RESULT varchar(20) NOT NULL,
-    COEFFICIENT decimal(18,8) NOT NULL,
-    CONSTRAINT PK_Cost PRIMARY KEY (ID_PRODUCT_RESOURCE, ID_PRODUCT_RESULT),
-    CONSTRAINT FK_Product_Resource FOREIGN KEY (ID_PRODUCT_RESOURCE) REFERENCES Product (ID),
-    CONSTRAINT FK_Product_Result FOREIGN KEY (ID_PRODUCT_RESULT) REFERENCES Product (ID)
+CREATE TABLE production_chains (
+    id SERIAL PRIMARY KEY,
+    input_product_id INT REFERENCES products(id),
+    output_product_id INT REFERENCES products(id),
+    amount NUMERIC(20, 6) NOT NULL
 );
+COMMENT ON TABLE production_chains IS 'Shows what products with what amount is needed to produce one unit of specific concrete product';
 
--- ExtConsumerPlan (\tau)
-CREATE TABLE ExtConsumerPlan (
-    ID varchar(10) NOT NULL,
-    PERIOD int NOT NULL,
-    COMMENT nchar(200) NULL,
-    CONSTRAINT PK_ExtConsumerPlan PRIMARY KEY (ID)
+CREATE TABLE production_plans (
+  id SERIAL PRIMARY KEY,
+  master_plan_id INT REFERENCES external_production_plans(id),
+  CHECK check_for_master_plan_values (is_external AND master_plan_id IS NULL or NOT is_external AND master_plan_id IS NOT NULL)
 );
+COMMENT ON TABLE external_production_plans IS 'Stores data for plans on production (plans without master_plan_id are considered master plans and are meant for export)';
 
--- PlanValue (Y — только y_i > 0)
-CREATE TABLE PlanValue (
-    ID_PRODUCT varchar(20) NOT NULL,
-    VALUE decimal(18,8) NOT NULL CHECK (VALUE >= 0),
-    ID_EXTCONSUMERPLAN varchar(10) NOT NULL,
-    CONSTRAINT PK_PlanValue PRIMARY KEY (ID_PRODUCT),
-    CONSTRAINT FK_ExtConsumerPlan FOREIGN KEY (ID_EXTCONSUMERPLAN) REFERENCES ExtConsumerPlan (ID) ON DELETE CASCADE,
-    CONSTRAINT FK_Product FOREIGN KEY (ID_PRODUCT) REFERENCES Product (ID) ON DELETE CASCADE
+CREATE TABLE plan_values (
+  id SERIAL PRIMARY KEY,
+  product_id INT REFERENCES products(id),
+  plan_id INT REFERENCES external_production_plans(id),
+  value NUMERIC(20, 6) NOT NULL
 );
+COMMENT ON TABLE plan_values IS 'Concrete values of products needed to be produced according to a specific plan';
 ```
 
 ## AP: ПК. Запросы
