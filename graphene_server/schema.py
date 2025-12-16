@@ -132,11 +132,11 @@ class Query(ObjectType):
         return result.scalars().all()
 
 
-# --- Mutation Root ---
-class Mutation(ObjectType):
-    # TODO: Implement mutations for creating Products, Chains, and Plans.
-    # Leaving empty for now as requested to save context space.
-    pass
+# # --- Mutation Root ---
+# class Mutation(ObjectType):
+#     # TODO: Implement mutations for creating Products, Chains, and Plans.
+#     # Leaving empty for now as requested to save context space.
+#     pass
 
 
-schema = graphene.Schema(query=Query, mutation=Mutation)
+schema = graphene.Schema(query=Query)
