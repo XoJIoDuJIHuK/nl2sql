@@ -24,4 +24,5 @@ dependencies = [
   "pyodata>=1.11.2",
   "python-dotenv>=1.1.1",
   "scipy>=1.16.3",
+  "strawberry-graphql>=0.287.3",
 ]
