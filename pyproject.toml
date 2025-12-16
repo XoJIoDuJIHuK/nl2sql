@@ -9,6 +9,7 @@ dependencies = [
   "asyncpg>=0.31.0",
   "debugpy>=1.8.17",
   "fastapi>=0.121.1",
+  "graphene>=3.4.3",
   "jupyter>=1.1.1",
   "matplotlib>=3.10.7",
   "mcp>=1.17.0",
