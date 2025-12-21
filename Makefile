@@ -3,3 +3,6 @@ run-server:
 
 run-graphql-server:
 	uvicorn graphql_server.main:app --port 8000 --reload
+
+run-graphene-server:
+	uvicorn graphene_server.main:app --port 8000 --reload

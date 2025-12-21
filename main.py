@@ -15,7 +15,7 @@ load_dotenv()
 
 
 class MCPClient:
-    def __init__(self):
+    def __init__(self, system_prompt_filename: str):
         self.session: ClientSession | None = None
         self.exit_stack = AsyncExitStack()
         self.openai = OpenAI(
@@ -46,7 +46,13 @@ class MCPClient:
         self.model = "openai/gpt-4.1-mini"
         # self.model = "openai/gpt-5"
 
-        with open("./YYY04.md") as file:
+        system_prompt_file_path = os.path.curdir + system_prompt_filename
+        if not os.path.exists(system_prompt_file_path):
+            raise ValueError(
+                "SystemPrompt file is not found. "
+                f"Search path: {system_prompt_file_path}"
+            )
+        with open(system_prompt_file_path) as file:
             self.system_prompt = file.read()
 
     async def connect_to_server(self):
@@ -112,25 +118,42 @@ class MCPClient:
             self.logger.error(f"HTTP call failed: {str(e)}")
             return f"Error during HTTP call: {str(e)}"
 
+    async def get_graphql_schema(self) -> str:
+        """Get GraphQL schema from localhost:8000/graphql-schema/"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = "http://localhost:8000/graphql-schema/"
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        return await resp.text()
+                    else:
+                        return f"HTTP error: {resp.status} - {await resp.text()}"
+        except Exception as e:
+            self.logger.error(f"Failed to get GraphQL schema: {str(e)}")
+            return f"Error getting GraphQL schema: {str(e)}"
+
+    async def make_graphql_request(self, query: str, variables: str = None) -> str:
+        """Make GraphQL request to localhost:8000/graphql"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = "http://localhost:8000/graphql"
+                payload = {"query": query}
+                if variables:
+                    payload["variables"] = json.loads(variables)
+
+                async with session.post(url, json=payload) as resp:
+                    if resp.status == 200:
+                        return await resp.text()
+                    else:
+                        return f"HTTP error: {resp.status} - {await resp.text()}"
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON in variables: {str(e)}")
+            return f"Error parsing variables: {str(e)}"
+        except Exception as e:
+            self.logger.error(f"Failed to make GraphQL request: {str(e)}")
+            return f"Error making GraphQL request: {str(e)}"
+
     async def process_query(self, query: str) -> str:
-        # system_prompt = (
-        #     "You are assistant capable of querying the database "
-        #     "and providing info based on its contents. Use neccessary "
-        #     "tools provided. You may execute select queries using "
-        #     "respective tool. Before making resulting queries to "
-        #     "the database, inspect its schema and objects to understand "
-        #     "user's request. User may use synonyms or names not used "
-        #     "in the database and your task is to understand that "
-        #     "and produce valid queries. If the user's query is ambiguos, "
-        #     "ask for clarification. "
-        #     "The context of the database is following: there's cluster "
-        #     "of producers. Each producer produces range of products (sets "
-        #     "of products may intersect). Prerequisites of each product "
-        #     "maybe empty or include some other products which is displayed "
-        #     "in the database. There's plan on how much of each product "
-        #     "to produce. Your task is to answer user's questions about "
-        #     "objects and data in the database"
-        # )
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": query},
@@ -150,33 +173,41 @@ class MCPClient:
             for tool in response.tools
             if tool.name not in self.forbidden_tools
         ]
-        # available_tools.append(
-        #     {
-        #         "type": "function",
-        #         "function": {
-        #             "name": "call_local_http_server",
-        #             "description": "Call a local HTTP server to retrieve some data. Must be used with body and query parameters",
-        #             "parameters": {
-        #                 "type": "object",
-        #                 "properties": {
-        #                     "endpoint": {
-        #                         "type": "string",
-        #                         "description": "The API endpoint to call: for now only '/process' is available",
-        #                     },
-        #                     "method": {
-        #                         "type": "string",
-        #                         "description": "HTTP method: for now only POST is available",
-        #                     },
-        #                     "data": {
-        #                         "type": "string",
-        #                         "description": "JSON-stringified data to send in the request body for POST requests or JSON-stringified dictionary of query parameters to send in the request URL for GET requests. May be empty",
-        #                     },
-        #                 },
-        #                 "required": ["endpoint", "method", "data"],
-        #             },
-        #         },
-        #     },
-        # )
+        available_tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_graphql_schema",
+                    "description": "Get the GraphQL schema from the server",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "make_graphql_request",
+                    "description": "Make a GraphQL request to the server",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "The GraphQL query to execute",
+                            },
+                            "variables": {
+                                "type": "string",
+                                "description": "JSON string of variables for the GraphQL query (optional)",
+                            },
+                        },
+                        "required": ["query"],
+                    },
+                },
+            },
+        ]
         self.logger.debug(
             "Available tools: %s",
             json.dumps(
@@ -250,9 +281,16 @@ class MCPClient:
                     self.logger.debug(
                         "LLM calling tool: %s with args: %s", tool_name, tool_args
                     )
-                    if tool_name == "call_local_http_server":
-                        # NEW: Handle custom tool separately
-                        __import__("pdb").set_trace()
+                    if tool_name == "get_graphql_schema":
+                        tool_result_content = await self.get_graphql_schema()
+                    elif tool_name == "make_graphql_request":
+                        query = tool_args.get("query", "")
+                        variables = tool_args.get("variables")
+                        tool_result_content = await self.make_graphql_request(
+                            query, variables
+                        )
+                    elif tool_name == "call_local_http_server":
+                        # Keep for backward compatibility but remove debug
                         tool_result_content = await self.call_local_http_server(
                             tool_args
                         )
@@ -304,7 +342,8 @@ class MCPClient:
 
 
 async def main():
-    client = MCPClient()
+    system_prompt_filename = "GraphQLSystemPrompt.md"
+    client = MCPClient(system_prompt_filename=system_prompt_filename,)
     try:
         await client.connect_to_server()
         await client.chat_loop()
