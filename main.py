@@ -343,7 +343,9 @@ class MCPClient:
 
 async def main():
     system_prompt_filename = "GraphQLSystemPrompt.md"
-    client = MCPClient(system_prompt_filename=system_prompt_filename,)
+    client = MCPClient(
+        system_prompt_filename=system_prompt_filename,
+    )
     try:
         await client.connect_to_server()
         await client.chat_loop()
