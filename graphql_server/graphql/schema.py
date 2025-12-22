@@ -2,8 +2,8 @@ import strawberry
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from graphql_server.database import get_db
-from graphql_server.models import (
+from database import get_db
+from database.models import (
     Product,
     Producer,
     ProductionPlan,

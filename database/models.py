@@ -1,18 +1,24 @@
+"""Unified database models for production management system."""
+
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    ForeignKey,
-    Numeric,
     Boolean,
     CheckConstraint,
+    Column,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
 )
 from sqlalchemy.orm import relationship
-from graphql_server.database import Base
+
+from .core import Base
 
 
 class AbstractProduct(Base):
+    """Represents abstract product categories."""
+
     __tablename__ = "abstract_products"
+
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
 
@@ -21,7 +27,10 @@ class AbstractProduct(Base):
 
 
 class Producer(Base):
+    """Represents manufacturing entities/producers."""
+
     __tablename__ = "producers"
+
     id = Column(Integer, primary_key=True)
     code = Column(String(10), unique=True, nullable=False)
 
@@ -29,32 +38,40 @@ class Producer(Base):
 
 
 class Product(Base):
+    """Represents concrete implementations of abstract products."""
+
     __tablename__ = "products"
+
     id = Column(Integer, primary_key=True)
     production_id = Column(Integer, ForeignKey("abstract_products.id"), nullable=False)
     producer_id = Column(Integer, ForeignKey("producers.id"), nullable=False)
     code = Column(String(20), nullable=False)
 
-    abstract_product = relationship(
-        "AbstractProduct", back_populates="concrete_products"
-    )
+    # Relationships
+    abstract_product = relationship("AbstractProduct", back_populates="concrete_products")
     producer = relationship("Producer", back_populates="products")
 
-    # Relationships for chains (Input/Output)
+    # Production chain relationships
     inputs_for = relationship(
         "ProductionChain",
         foreign_keys="[ProductionChain.input_product_id]",
         back_populates="input_product",
     )
-    outputs_from = relationship(
+    produced_by = relationship(
         "ProductionChain",
         foreign_keys="[ProductionChain.output_product_id]",
         back_populates="output_product",
     )
 
+    # Plan values relationship
+    plan_values = relationship("PlanValue", back_populates="product")
+
 
 class ProductionChain(Base):
+    """Defines input/output relationships between products."""
+
     __tablename__ = "production_chains"
+
     id = Column(Integer, primary_key=True)
     input_product_id = Column(Integer, ForeignKey("products.id"))
     output_product_id = Column(Integer, ForeignKey("products.id"))
@@ -64,18 +81,20 @@ class ProductionChain(Base):
         "Product", foreign_keys=[input_product_id], back_populates="inputs_for"
     )
     output_product = relationship(
-        "Product", foreign_keys=[output_product_id], back_populates="outputs_from"
+        "Product", foreign_keys=[output_product_id], back_populates="produced_by"
     )
 
 
 class ProductionPlan(Base):
+    """Represents production plans with hierarchical structure."""
+
     __tablename__ = "production_plans"
 
     id = Column(Integer, primary_key=True)
     master_plan_id = Column(Integer, ForeignKey("production_plans.id"), nullable=True)
-    is_external = Column(Boolean, default=False)  # Inferred from your CHECK constraint
+    is_external = Column(Boolean, default=False, nullable=True)
 
-    # Self-referential relationship
+    # Self-referential relationship for sub-plans
     sub_plans = relationship("ProductionPlan", backref="master_plan", remote_side=[id])
     plan_values = relationship("PlanValue", back_populates="plan")
 
@@ -88,11 +107,14 @@ class ProductionPlan(Base):
 
 
 class PlanValue(Base):
+    """Stores specific quantities for each product in a production plan."""
+
     __tablename__ = "plan_values"
+
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"))
     plan_id = Column(Integer, ForeignKey("production_plans.id"))
     value = Column(Numeric(20, 6), nullable=False)
 
-    product = relationship("Product")
+    product = relationship("Product", back_populates="plan_values")
     plan = relationship("ProductionPlan", back_populates="plan_values")

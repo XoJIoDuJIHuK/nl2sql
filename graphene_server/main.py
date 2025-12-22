@@ -2,7 +2,7 @@ import json
 from fastapi import FastAPI, Depends, Request
 from graphql import print_schema
 from starlette.responses import HTMLResponse
-from graphene_server.database import get_db
+from database import get_db
 from graphene_server.schema import schema
 from sqlalchemy.ext.asyncio import AsyncSession
 

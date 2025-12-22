@@ -2,7 +2,7 @@ import graphene
 from graphene import ObjectType, String, Int, Float, List, Field, Boolean
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from graphene_server import models
+from database import models
 
 # --- Object Types ---
 
