@@ -46,7 +46,7 @@ class MCPClient:
         self.model = "openai/gpt-4.1-mini"
         # self.model = "openai/gpt-5"
 
-        system_prompt_file_path = os.path.curdir + system_prompt_filename
+        system_prompt_file_path = os.path.join("system_prompts",  system_prompt_filename)
         if not os.path.exists(system_prompt_file_path):
             raise ValueError(
                 "SystemPrompt file is not found. "
