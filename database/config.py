@@ -1,7 +1,4 @@
-"""Database configuration using Pydantic settings."""
-
 from pydantic_settings import BaseSettings
-from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -12,21 +9,20 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str = ""
-    database_url: Optional[str] = None  # Allow direct DATABASE_URL override
+    database_url: str | None = None
 
-    # Optional: Database connection pool settings
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
-    db_pool_recycle: int = 3600  # 1 hour
+    db_pool_recycle: int = 3600
 
     # Echo SQL statements for debugging
     echo_sql: bool = False
 
     model_config = {
-        "env_file": "/home/Aleh/maga/dissertation/.env",
+        "env_file": ".env",
         "case_sensitive": False,
-        "extra": "ignore"  # Ignore extra fields in .env file
+        "extra": "ignore",
     }
 
     @property
@@ -45,5 +41,4 @@ class Settings(BaseSettings):
         )
 
 
-# Create a singleton instance
 settings = Settings()

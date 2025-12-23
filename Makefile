@@ -1,8 +1,8 @@
 run-server:
 	uvicorn server:app --port 8000 --reload
 
-run-graphql-server:
-	uvicorn graphql_server.main:app --port 8000 --reload
+run-strawberry-server:
+	uvicorn strawberry_server.main:app --port 8000 --reload
 
 run-graphene-server:
 	uvicorn graphene_server.main:app --port 8000 --reload

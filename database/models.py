@@ -1,5 +1,3 @@
-"""Unified database models for production management system."""
-
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -48,7 +46,9 @@ class Product(Base):
     code = Column(String(20), nullable=False)
 
     # Relationships
-    abstract_product = relationship("AbstractProduct", back_populates="concrete_products")
+    abstract_product = relationship(
+        "AbstractProduct", back_populates="concrete_products"
+    )
     producer = relationship("Producer", back_populates="products")
 
     # Production chain relationships
@@ -100,7 +100,8 @@ class ProductionPlan(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "(is_external AND master_plan_id IS NULL) OR (NOT is_external AND master_plan_id IS NOT NULL)",
+            "(is_external AND master_plan_id IS NULL) OR "
+                "(NOT is_external AND master_plan_id IS NOT NULL)",
             name="check_for_master_plan_values",
         ),
     )
@@ -118,3 +119,4 @@ class PlanValue(Base):
 
     product = relationship("Product", back_populates="plan_values")
     plan = relationship("ProductionPlan", back_populates="plan_values")
+

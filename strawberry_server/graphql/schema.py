@@ -8,7 +8,7 @@ from database.models import (
     Producer,
     ProductionPlan,
 )
-from graphql_server.graphql.types import (
+from strawberry_server.graphql.types import (
     PlanValueType,
     ProductType,
     ProductionPlanType,
