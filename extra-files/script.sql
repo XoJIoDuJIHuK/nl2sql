@@ -1,10 +1,17 @@
 -- Create tables
 
+DROP TABLE IF EXISTS plan_values;
+DROP TABLE IF EXISTS production_chains;
+DROP TABLE IF EXISTS production_plans;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS producers;
+DROP TABLE IF EXISTS abstract_products;
+
 CREATE TABLE abstract_products (
   id SERIAL PRIMARY KEY,
-  name VARCHAR NOT NULL UNIQUE,
-)
-COMMENT ON TABLE production IS 'Abstract products that may be produced by cluster members into concrete products with different properties';
+  name VARCHAR NOT NULL UNIQUE
+);
+COMMENT ON TABLE abstract_products IS 'Abstract products that may be produced by cluster members into concrete products with different properties';
 
 CREATE TABLE producers (
     id SERIAL PRIMARY KEY,
@@ -15,8 +22,7 @@ COMMENT ON TABLE producers IS 'Producers that produce products and supply each o
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     production_id INT NOT NULL REFERENCES abstract_products(id),
-    producer_id INT NOT NULL REFERENCES producers(id),
-    code VARCHAR(20) NOT NULL,
+    producer_id INT NOT NULL REFERENCES producers(id)
 );
 COMMENT ON TABLE products IS 'Concrete products produced by specific producer and being "implementations" of abstract products';
 
@@ -30,18 +36,18 @@ COMMENT ON TABLE production_chains IS 'Shows what products with what amount is n
 
 CREATE TABLE production_plans (
   id SERIAL PRIMARY KEY,
-  master_plan_id INT REFERENCES production_plans(id),
-  CHECK check_for_master_plan_values (is_external AND master_plan_id IS NULL or NOT is_external AND master_plan_id IS NOT NULL)
+  master_plan_id INT REFERENCES production_plans(id)
 );
-COMMENT ON TABLE external_production_plans IS 'Stores data for plans on production (plans without master_plan_id are considered master plans and are meant for export)';
+COMMENT ON TABLE production_plans IS 'Stores data for plans on production (plans without master_plan_id are considered master plans and are meant for export)';
 
 CREATE TABLE plan_values (
   id SERIAL PRIMARY KEY,
   product_id INT NOT NULL REFERENCES products(id),
-  plan_id INT NOT NULL REFERENCES external_production_plans(id),
+  plan_id INT NOT NULL REFERENCES production_plans(id),
   value NUMERIC(20, 6) NOT NULL
 );
 COMMENT ON TABLE plan_values IS 'Concrete values of products needed to be produced according to a specific plan';
+COMMIT;
 
 INSERT INTO abstract_products (name) VALUES ('PC-A');
 INSERT INTO abstract_products (name) VALUES ('PC-B');
@@ -51,6 +57,7 @@ INSERT INTO abstract_products (name) VALUES ('CPS');
 INSERT INTO abstract_products (name) VALUES ('RAM');
 INSERT INTO abstract_products (name) VALUES ('MG');
 INSERT INTO abstract_products (name) VALUES ('WAR');
+COMMIT;
 
 -- Insert producers
 INSERT INTO producers (code) VALUES ('C1');
@@ -60,6 +67,7 @@ INSERT INTO producers (code) VALUES ('C4');
 INSERT INTO producers (code) VALUES ('C5');
 INSERT INTO producers (code) VALUES ('C6');
 INSERT INTO producers (code) VALUES ('C7');
+COMMIT;
 
 -- Insert products (cluster-specific products ri)
 INSERT INTO products (producer_id, production_id) VALUES (1, 1);
@@ -72,6 +80,7 @@ INSERT INTO products (producer_id, production_id) VALUES (4, 5);
 INSERT INTO products (producer_id, production_id) VALUES (5, 6);
 INSERT INTO products (producer_id, production_id) VALUES (6, 7);
 INSERT INTO products (producer_id, production_id) VALUES (7, 8);
+COMMIT;
 
 -- Insert production_chains (from matrix A: input_id for row, output_id for col, amount a_row,col)
 -- Non-zero entries only

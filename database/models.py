@@ -43,7 +43,6 @@ class Product(Base):
     id = Column(Integer, primary_key=True)
     production_id = Column(Integer, ForeignKey("abstract_products.id"), nullable=False)
     producer_id = Column(Integer, ForeignKey("producers.id"), nullable=False)
-    code = Column(String(20), nullable=False)
 
     # Relationships
     abstract_product = relationship(
@@ -92,19 +91,11 @@ class ProductionPlan(Base):
 
     id = Column(Integer, primary_key=True)
     master_plan_id = Column(Integer, ForeignKey("production_plans.id"), nullable=True)
-    is_external = Column(Boolean, default=False, nullable=True)
 
     # Self-referential relationship for sub-plans
     sub_plans = relationship("ProductionPlan", backref="master_plan", remote_side=[id])
     plan_values = relationship("PlanValue", back_populates="plan")
 
-    __table_args__ = (
-        CheckConstraint(
-            "(is_external AND master_plan_id IS NULL) OR "
-                "(NOT is_external AND master_plan_id IS NOT NULL)",
-            name="check_for_master_plan_values",
-        ),
-    )
 
 
 class PlanValue(Base):
@@ -119,4 +110,3 @@ class PlanValue(Base):
 
     product = relationship("Product", back_populates="plan_values")
     plan = relationship("ProductionPlan", back_populates="plan_values")
-

@@ -19,7 +19,6 @@ class ProducerType(ObjectType):
 
 class ProductType(ObjectType):
     id = Int()
-    code = String()
     abstract_product = Field(AbstractProductType)
     producer = Field(ProducerType)
 
@@ -42,7 +41,6 @@ class PlanValueType(ObjectType):
 
 class ProductionPlanType(ObjectType):
     id = Int()
-    is_external = Boolean()
     # To avoid circular dependency issues in Graphene, we can use a string or lambda
     master_plan = Field(lambda: ProductionPlanType)
     sub_plans = List(lambda: ProductionPlanType)

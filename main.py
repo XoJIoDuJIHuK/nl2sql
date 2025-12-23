@@ -43,8 +43,8 @@ class MCPClient:
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         # self.model = "deepseek/deepseek-v3.1-terminus"
-        self.model = "openai/gpt-4.1-mini"
-        # self.model = "openai/gpt-5"
+        # self.model = "openai/gpt-4.1-mini"
+        self.model = "openai/gpt-5-mini"
 
         system_prompt_file_path = os.path.join("system_prompts",  system_prompt_filename)
         if not os.path.exists(system_prompt_file_path):

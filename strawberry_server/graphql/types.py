@@ -23,7 +23,6 @@ class ProducerType:
 @strawberry.type(description="A specific concrete product implementation.")
 class ProductType:
     id: int
-    code: str
 
     @strawberry.field(description="The generic category this product belongs to.")
     async def abstract_product(self, info: Info) -> AbstractProductType:
@@ -62,7 +61,6 @@ class PlanValueType:
 @strawberry.type(description="Hierarchical production plans.")
 class ProductionPlanType:
     id: int
-    is_external: bool
 
     @strawberry.field(
         description="The list of specific product quantities in this plan."

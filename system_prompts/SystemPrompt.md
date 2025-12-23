@@ -72,9 +72,9 @@ H_S = \langle A, Y, \tau \rangle — СППК для кластера S, где:
 ```sql
 CREATE TABLE abstract_products (
   id SERIAL PRIMARY KEY,
-  name VARCHAR NOT NULL UNIQUE,
-)
-COMMENT ON TABLE production IS 'Abstract products that may be produced by cluster members into concrete products with different properties';
+  name VARCHAR NOT NULL UNIQUE
+);
+COMMENT ON TABLE abstract_products IS 'Abstract products that may be produced by cluster members into concrete products with different properties';
 
 CREATE TABLE producers (
     id SERIAL PRIMARY KEY,
@@ -84,31 +84,29 @@ COMMENT ON TABLE producers IS 'Producers that produce products and supply each o
 
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
-    production_id INT REFERENCES abstract_products(id) NOT NULL,
-    producer_id INT REFERENCES producers(id) NOT NULL,
-    code VARCHAR(20) NOT NULL,
+    production_id INT NOT NULL REFERENCES abstract_products(id),
+    producer_id INT NOT NULL REFERENCES producers(id)
 );
 COMMENT ON TABLE products IS 'Concrete products produced by specific producer and being "implementations" of abstract products';
 
 CREATE TABLE production_chains (
     id SERIAL PRIMARY KEY,
-    input_product_id INT REFERENCES products(id),
-    output_product_id INT REFERENCES products(id),
+    input_product_id INT NOT NULL REFERENCES products(id),
+    output_product_id INT NOT NULL REFERENCES products(id),
     amount NUMERIC(20, 6) NOT NULL
 );
 COMMENT ON TABLE production_chains IS 'Shows what products with what amount is needed to produce one unit of specific concrete product';
 
 CREATE TABLE production_plans (
   id SERIAL PRIMARY KEY,
-  master_plan_id INT REFERENCES external_production_plans(id),
-  CHECK check_for_master_plan_values (is_external AND master_plan_id IS NULL or NOT is_external AND master_plan_id IS NOT NULL)
+  master_plan_id INT REFERENCES production_plans(id)
 );
-COMMENT ON TABLE external_production_plans IS 'Stores data for plans on production (plans without master_plan_id are considered master plans and are meant for export)';
+COMMENT ON TABLE production_plans IS 'Stores data for plans on production (plans without master_plan_id are considered master plans and are meant for export)';
 
 CREATE TABLE plan_values (
   id SERIAL PRIMARY KEY,
-  product_id INT REFERENCES products(id),
-  plan_id INT REFERENCES external_production_plans(id),
+  product_id INT NOT NULL REFERENCES products(id),
+  plan_id INT NOT NULL REFERENCES production_plans(id),
   value NUMERIC(20, 6) NOT NULL
 );
 COMMENT ON TABLE plan_values IS 'Concrete values of products needed to be produced according to a specific plan';
