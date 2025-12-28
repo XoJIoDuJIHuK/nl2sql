@@ -46,7 +46,7 @@ class MCPClient:
         # self.model = "openai/gpt-4.1-mini"
         self.model = "openai/gpt-5-mini"
 
-        system_prompt_file_path = os.path.join("system_prompts",  system_prompt_filename)
+        system_prompt_file_path = os.path.join("system_prompts", system_prompt_filename)
         if not os.path.exists(system_prompt_file_path):
             raise ValueError(
                 "SystemPrompt file is not found. "
@@ -90,33 +90,6 @@ class MCPClient:
             if tool.name not in self.forbidden_tools
         ]
         print("\nConnected to postgres mcp server with tools:", tools)
-
-    async def call_local_http_server(self, args: dict) -> str:
-        base_url = "http://localhost:8000"  # Change if your server is elsewhere
-        endpoint = args["endpoint"]
-        method = args["method"].upper()
-        data = json.loads(args["data"]) if args["data"] != "" else {}
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                url = base_url + endpoint
-                if method == "GET":
-                    async with session.get(url, params=data) as resp:
-                        if resp.status == 200:
-                            return await resp.text()
-                        else:
-                            return f"HTTP error: {resp.status} - {await resp.text()}"
-                elif method == "POST":
-                    async with session.post(url, json=data) as resp:
-                        if resp.status == 200:
-                            return await resp.text()
-                        else:
-                            return f"HTTP error: {resp.status} - {await resp.text()}"
-                else:
-                    return "Unsupported HTTP method"
-        except Exception as e:
-            self.logger.error(f"HTTP call failed: {str(e)}")
-            return f"Error during HTTP call: {str(e)}"
 
     async def get_graphql_schema(self) -> str:
         """Get GraphQL schema from localhost:8000/graphql-schema/"""
@@ -288,11 +261,6 @@ class MCPClient:
                         variables = tool_args.get("variables")
                         tool_result_content = await self.make_graphql_request(
                             query, variables
-                        )
-                    elif tool_name == "call_local_http_server":
-                        # Keep for backward compatibility but remove debug
-                        tool_result_content = await self.call_local_http_server(
-                            tool_args
                         )
                     else:
                         # Existing MCP tool handling
