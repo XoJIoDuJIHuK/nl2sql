@@ -1,6 +1,4 @@
 from sqlalchemy import (
-    Boolean,
-    CheckConstraint,
     Column,
     ForeignKey,
     Integer,
@@ -21,7 +19,9 @@ class AbstractProduct(Base):
     name = Column(String, unique=True, nullable=False)
 
     # Relationships
-    concrete_products = relationship("Product", back_populates="abstract_product")
+    concrete_products = relationship(
+        "Product", back_populates="abstract_product", lazy="selectin"
+    )
 
 
 class Producer(Base):
@@ -32,7 +32,7 @@ class Producer(Base):
     id = Column(Integer, primary_key=True)
     code = Column(String(10), unique=True, nullable=False)
 
-    products = relationship("Product", back_populates="producer")
+    products = relationship("Product", back_populates="producer", lazy="selectin")
 
 
 class Product(Base):
@@ -46,24 +46,26 @@ class Product(Base):
 
     # Relationships
     abstract_product = relationship(
-        "AbstractProduct", back_populates="concrete_products"
+        "AbstractProduct", back_populates="concrete_products", lazy="joined"
     )
-    producer = relationship("Producer", back_populates="products")
+    producer = relationship("Producer", back_populates="products", lazy="joined")
 
     # Production chain relationships
     inputs_for = relationship(
         "ProductionChain",
         foreign_keys="[ProductionChain.input_product_id]",
         back_populates="input_product",
+        lazy="selectin",
     )
     produced_by = relationship(
         "ProductionChain",
         foreign_keys="[ProductionChain.output_product_id]",
         back_populates="output_product",
+        lazy="selectin",
     )
 
     # Plan values relationship
-    plan_values = relationship("PlanValue", back_populates="product")
+    plan_values = relationship("PlanValue", back_populates="product", lazy="selectin")
 
 
 class ProductionChain(Base):
@@ -77,10 +79,16 @@ class ProductionChain(Base):
     amount = Column(Numeric(20, 6), nullable=False)
 
     input_product = relationship(
-        "Product", foreign_keys=[input_product_id], back_populates="inputs_for"
+        "Product",
+        foreign_keys=[input_product_id],
+        back_populates="inputs_for",
+        lazy="joined",
     )
     output_product = relationship(
-        "Product", foreign_keys=[output_product_id], back_populates="produced_by"
+        "Product",
+        foreign_keys=[output_product_id],
+        back_populates="produced_by",
+        lazy="joined",
     )
 
 
@@ -93,9 +101,10 @@ class ProductionPlan(Base):
     master_plan_id = Column(Integer, ForeignKey("production_plans.id"), nullable=True)
 
     # Self-referential relationship for sub-plans
-    sub_plans = relationship("ProductionPlan", backref="master_plan", remote_side=[id])
-    plan_values = relationship("PlanValue", back_populates="plan")
-
+    sub_plans = relationship(
+        "ProductionPlan", backref="master_plan", remote_side=[id], lazy="selectin"
+    )
+    plan_values = relationship("PlanValue", back_populates="plan", lazy="selectin")
 
 
 class PlanValue(Base):
@@ -108,5 +117,5 @@ class PlanValue(Base):
     plan_id = Column(Integer, ForeignKey("production_plans.id"))
     value = Column(Numeric(20, 6), nullable=False)
 
-    product = relationship("Product", back_populates="plan_values")
-    plan = relationship("ProductionPlan", back_populates="plan_values")
+    product = relationship("Product", back_populates="plan_values", lazy="joined")
+    plan = relationship("ProductionPlan", back_populates="plan_values", lazy="joined")

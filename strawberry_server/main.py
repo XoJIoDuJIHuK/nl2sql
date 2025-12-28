@@ -1,10 +1,17 @@
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
+from database.dependencies import get_db
 from strawberry_server.graphql.schema import schema
 
 app = FastAPI()
 
-graphql_app = GraphQLRouter(schema)
+
+async def get_context():
+    async for session in get_db():
+        yield {"session": session}
+
+
+graphql_app = GraphQLRouter(schema, context_getter=get_context)
 
 app.include_router(graphql_app, prefix="/graphql")
 
@@ -13,7 +20,8 @@ app.include_router(graphql_app, prefix="/graphql")
 async def root():
     return {"message": "Go to /graphql to access the GraphiQL interface"}
 
-@app.get('/graphql-schema')
+
+@app.get("/graphql-schema")
 async def get_schema():
     introspection_query = """
         query IntrospectionQuery {
