@@ -15,14 +15,14 @@ MODELS_TO_TEST = [
     # "openai/gpt-4o",
     # "openai/gpt-4o-mini",
     # "openai/gpt-5",
-    # "openai/gpt-5-mini",
-    # "openai/gpt-5-nano",
+    "openai/gpt-5-mini",
+    "openai/gpt-5-nano",
     # # "anthropic/claude-4.5-sonnet",  # apparently does not support function calling
-    # "deepseek/deepseek-chat",
-    # "deepseek/deepseek-v3.2",
+    "deepseek/deepseek-chat",
+    "deepseek/deepseek-v3.2",
     # "deepseek/deepseek-r1-0528",
     # "google/gemini-2.5-pro",
-    # "google/gemini-2.5-flash",
+    "google/gemini-2.5-flash",
     "google/gemini-2.5-flash-lite",
 ]
 
