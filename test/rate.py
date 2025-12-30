@@ -1,12 +1,11 @@
 import os
 import csv
 import json
-import time
-import asyncio
 import argparse
 import pandas as pd
-from openai import OpenAI
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
+from typing import List, Dict
 
 load_dotenv()
 
@@ -17,7 +16,7 @@ SYSTEM_PROMPT_PATH = os.path.join("system_prompts", "GraphQLSystemPrompt.md")
 
 class Evaluator:
     def __init__(self):
-        self.client = OpenAI(
+        self.client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
         )
@@ -35,19 +34,21 @@ class Evaluator:
                 "Context: Industrial Cluster Math Model and Postgres DB."
             )
 
-    def construct_evaluation_prompt(self, question: str, answer: str) -> list:
+    def construct_batch_evaluation_prompt(
+        self, questions: List[str], answers: List[str]
+    ) -> list:
         """
-        Constructs the prompt for the Judge.
-        Crucially, this does NOT include the model name (Anonymous).
+        Constructs a batch prompt for evaluating all responses at once.
+        Returns a list of ratings (one per answer) and optionally reasonings.
         """
 
         judge_system_instruction = f"""
         You are an expert AI Auditor and SQL Architect.
-        Your task is to evaluate the quality of a response provided by an anonymous AI assistant.
-        The assistant has access to a database through SQL adapter or external GraphQL server and is able to provide actual data from the database. In that case assess response quality (how relevant data is, how much unneccessary data is there, ...)
-        
+        Your task is to evaluate the quality of responses provided by anonymous AI assistants.
+        The assistants have access to a database through SQL adapter or external GraphQL server and are able to provide actual data from the database. In that case assess response quality (how relevant data is, how much unneccessary data is there, ...)
+
         ### The Domain Context
-        The assistant was operating under the following constraints and schema:
+        The assistants were operating under the following constraints and schema:
         ---
         {self.domain_context}
         ---
@@ -57,35 +58,54 @@ class Evaluator:
         - **8-9**: Correct logic but minor formatting issues or verbose explanations when not asked.
         - **5-7**: Plausible SQL/JSON/data response but hallucinated table names or slight logic errors.
         - **1-4**: Invalid SQL, Hallucination, Python code instead of SQL, or complete failure to answer.
-        
+
         ### Output Format
-        Return ONLY a JSON object:
+        Return ONLY a JSON object with two arrays:
         {{
-            "rating": <integer 1-10>,
-            "reasoning": "<short explanation>"
+            "ratings": [<integer 1-10 for answer 1>, <integer 1-10 for answer 2>, ...],
+            "reasonings": ["<short explanation for answer 1>", "<short explanation for answer 2>", ...]
         }}
+
+        The order of ratings and reasonings MUST match the order of the questions provided below.
         """
+
+        # Build user content with all questions and answers
+        qa_pairs = []
+        for i, (q, a) in enumerate(zip(questions, answers), 1):
+            qa_pairs.append(
+                f"""
+### Pair {i}
+**User Question:**
+{q}
+
+**Assistant's Response:**
+{a}
+---
+"""
+            )
 
         user_content = f"""
-        ### The User Question
-        {question}
+Evaluate the following question-answer pairs. Return ratings and reasonings for each pair in order.
 
-        ### The Assistant's Response
-        {answer}
-        
-        Evaluate this response.
-        """
+{''.join(qa_pairs)}
+"""
 
         return [
             {"role": "system", "content": judge_system_instruction},
             {"role": "user", "content": user_content},
         ]
 
-    def rate_response(self, question: str, answer: str) -> dict:
-        messages = self.construct_evaluation_prompt(question, answer)
+    async def rate_responses_batch(
+        self, questions: List[str], answers: List[str]
+    ) -> List[Dict]:
+        """
+        Evaluate all responses in a single API call asynchronously.
+        Returns a list of dicts with 'rating' and 'reasoning' for each answer.
+        """
+        messages = self.construct_batch_evaluation_prompt(questions, answers)
 
         try:
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=EVALUATOR_MODEL,
                 messages=messages,
                 response_format={"type": "json_object"},
@@ -94,11 +114,24 @@ class Evaluator:
 
             content = response.choices[0].message.content
             if content is None:
-                raise ValueError("Content is None for answer %s" % answer)
-            return json.loads(content)
+                raise ValueError("Content is None")
+            result = json.loads(content)
+
+            ratings = result.get("ratings", [])
+            reasonings = result.get("reasonings", [])
+
+            # Ensure we return one result per input
+            results = []
+            for i in range(len(answers)):
+                results.append({
+                    "rating": ratings[i] if i < len(ratings) else 0,
+                    "reasoning": reasonings[i] if i < len(reasonings) else "Missing evaluation",
+                })
+            return results
+
         except Exception as e:
             print(f"Error calling Evaluator: {e}")
-            return {"rating": 0, "reasoning": "Evaluation Failed"}
+            return [{"rating": 0, "reasoning": f"Evaluation Failed: {e}"} for _ in answers]
 
 
 def main():
@@ -124,50 +157,79 @@ def main():
         return
 
     evaluator = Evaluator()
-    results = []
 
     # Group by Model to process one model at a time
     grouped = df.groupby("Model")
-
     total_models = len(grouped)
-    current_model_idx = 0
 
-    print(f"Starting evaluation using {EVALUATOR_MODEL}...")
+    print(f"Starting batch evaluation using {EVALUATOR_MODEL}...")
 
-    for model_name, group_data in grouped:
-        current_model_idx += 1
-        print(
-            f"\n--- Processing Model {current_model_idx}/{total_models} (Anonymous ID: M-{current_model_idx}) ---"
-        )
+    async def evaluate_all_models():
+        results = []
+        tasks = []
+        model_info = []  # Store metadata to map results back
 
-        # Iterate through rows for this model
-        for idx, row in group_data.iterrows():
-            p_id = row["Prompt_ID"]
-            question = row["Prompt_Text"]
-            answer = str(row["Response"])  # Ensure string
-
-            print(f"   Evaluating Q: {p_id}...", end="", flush=True)
-
-            # Rate the response
-            eval_result = evaluator.rate_response(question, answer)
-            rating = eval_result.get("rating", 0)
-            reason = eval_result.get("reasoning", "N/A")
-
-            print(f" Score: {rating}/10")
-
-            # Store Result
-            results.append(
-                {
-                    "Model": model_name,
-                    "Prompt_ID": p_id,
-                    "Rating": rating,
-                    "Reasoning": reason,
-                    "Original_Response": answer[:50] + "...",  # Truncate for summary
-                }
+        current_model_idx = 0
+        for model_name, group_data in grouped:
+            current_model_idx += 1
+            print(
+                f"\n--- Preparing Model {current_model_idx}/{total_models} ({model_name}) ---"
             )
 
-            # Small sleep to be polite to the API rate limit
-            time.sleep(1)
+            # Collect all Q&A for this model
+            questions = []
+            answers = []
+            prompt_ids = []
+
+            for idx, row in group_data.iterrows():
+                p_id = row["Prompt_ID"]
+                question = row["Prompt_Text"]
+                answer = str(row["Response"])
+
+                questions.append(question)
+                answers.append(answer)
+                prompt_ids.append(p_id)
+
+            # Store metadata for this batch
+            start_idx = len(results)
+            model_info.append({
+                "model_name": model_name,
+                "prompt_ids": prompt_ids,
+                "answers": answers,
+                "start_idx": start_idx,
+            })
+
+            # Create async task for this model's batch
+            task = evaluator.rate_responses_batch(questions, answers)
+            tasks.append(task)
+
+        # Execute all evaluations concurrently
+        print(f"\n--- Sending {len(tasks)} batch evaluation requests concurrently ---")
+        eval_results_lists = await asyncio.gather(*tasks)
+
+        # Process results
+        for info, eval_results in zip(model_info, eval_results_lists):
+            for p_id, answer, eval_result in zip(
+                info["prompt_ids"], info["answers"], eval_results
+            ):
+                rating = eval_result.get("rating", 0)
+                reason = eval_result.get("reasoning", "N/A")
+                print(f"{info['model_name'][:20]:20} | Q:{p_id} | Score: {rating}/10")
+
+                results.append(
+                    {
+                        "Model": info["model_name"],
+                        "Prompt_ID": p_id,
+                        "Rating": rating,
+                        "Reasoning": reason,
+                        "Original_Response": answer[:50] + "...",
+                    }
+                )
+
+        return results
+
+    # Run async evaluation
+    results = asyncio.run(evaluate_all_models())
 
     # --- Generate Output ---
 
