@@ -1,73 +1,51 @@
 -- Import script for external data from PlanXSQLServer
--- Run this after migration_script.sql
+-- Run this after script.sql
 
--- Insert external consumer plans
-INSERT INTO ext_consumer_plan(id, period, comment)
-VALUES ('0000000001', 1, 'test')
-ON CONFLICT (id) DO NOTHING;
-
--- Helper function to find product ID by label
+-- Helper function to find product ID by dynamically computed label
+-- Label format: {producer_code}/{abstract_product_name}
 CREATE OR REPLACE FUNCTION get_product_id_by_label(product_label TEXT)
 RETURNS INT AS $$
+DECLARE
+    parts TEXT[];
+    producer_code TEXT;
+    abstract_name TEXT;
 BEGIN
-    RETURN (SELECT id FROM products WHERE label = product_label LIMIT 1);
+    parts := string_to_array(product_label, '/');
+    producer_code := parts[1];
+    abstract_name := parts[2];
+    
+    RETURN (
+        SELECT p.id
+        FROM products p
+        JOIN producers pr ON p.producer_id = pr.id
+        JOIN abstract_products ap ON p.production_id = ap.id
+        WHERE pr.code = producer_code AND ap.name = abstract_name
+        LIMIT 1
+    );
 END;
 $$ LANGUAGE plpgsql;
 
--- Insert plan values
--- Note: These map to your existing products using the updated labels
-INSERT INTO plan_value(id_product, value, id_extconsumerplan) VALUES
-    (get_product_id_by_label('C1/PCA'), 10000, '0000000001'),
-    (get_product_id_by_label('C1/PCB'), 15000, '0000000001'),
-    (get_product_id_by_label('C2/PCA'), 20000, '0000000001'),
-    (get_product_id_by_label('C2/PCB'), 10000, '0000000001'),
-    (get_product_id_by_label('C3/SUA'),  5000, '0000000001'),
-    (get_product_id_by_label('C3/MB'),   1000, '0000000001'),
-    (get_product_id_by_label('C4/CPS'),  2000, '0000000001'),
-    (get_product_id_by_label('C5/RAM'), 10000, '0000000001'),
-    (get_product_id_by_label('C6/MG'),   5000, '0000000001')
-ON CONFLICT (id_product, id_extconsumerplan) DO NOTHING;
+-- Create external consumer plan and get its ID using a DO block
+DO $$
+DECLARE
+    v_plan_id INT;
+BEGIN
+    INSERT INTO production_plans(master_plan_id)
+    VALUES (NULL)
+    RETURNING id INTO v_plan_id;
 
--- Clear existing cost data and insert new cost coefficients
-DELETE FROM cost;
-
-INSERT INTO cost(id_product_resource, id_product_result, coefficient) VALUES
-    -- C3/SUA costs
-    (get_product_id_by_label('C3/SUA'), get_product_id_by_label('C2/PCA'), 1),
-
-    -- C3/MB costs
-    (get_product_id_by_label('C3/MB'),  get_product_id_by_label('C1/PCA'), 1),
-    (get_product_id_by_label('C3/MB'),  get_product_id_by_label('C1/PCB'), 1),
-    (get_product_id_by_label('C3/MB'),  get_product_id_by_label('C2/PCB'), 1),
-    (get_product_id_by_label('C3/MB'),  get_product_id_by_label('C3/SUA'), 1),
-    (get_product_id_by_label('C3/MB'),  get_product_id_by_label('C7/WAR'), 0.001),
-
-    -- C4/CPS costs
-    (get_product_id_by_label('C4/CPS'),  get_product_id_by_label('C1/PCA'), 1),
-    (get_product_id_by_label('C4/CPS'),  get_product_id_by_label('C1/PCB'), 1),
-    (get_product_id_by_label('C4/CPS'),  get_product_id_by_label('C2/PCB'), 1),
-    (get_product_id_by_label('C4/CPS'),  get_product_id_by_label('C3/SUA'), 1),
-    (get_product_id_by_label('C4/CPS'),  get_product_id_by_label('C7/WAR'), 0.01),
-
-    -- C5/RAM costs
-    (get_product_id_by_label('C5/RAM'),  get_product_id_by_label('C1/PCA'), 2),
-    (get_product_id_by_label('C5/RAM'),  get_product_id_by_label('C1/PCB'), 4),
-    (get_product_id_by_label('C5/RAM'),  get_product_id_by_label('C2/PCB'), 4),
-    (get_product_id_by_label('C5/RAM'),  get_product_id_by_label('C3/SUA'), 2),
-    (get_product_id_by_label('C5/RAM'),  get_product_id_by_label('C7/WAR'), 0.001),
-
-    -- C6/MG costs
-    (get_product_id_by_label('C6/MG'),  get_product_id_by_label('C1/PCA'), 1),
-    (get_product_id_by_label('C6/MG'),  get_product_id_by_label('C1/PCB'), 1),
-    (get_product_id_by_label('C6/MG'),  get_product_id_by_label('C2/PCA'), 1),
-    (get_product_id_by_label('C6/MG'),  get_product_id_by_label('C2/PCB'), 1),
-    (get_product_id_by_label('C6/MG'),  get_product_id_by_label('C7/WAR'), 0.005),
-
-    -- C7/WAR costs
-    (get_product_id_by_label('C7/WAR'),  get_product_id_by_label('C1/PCA'), 1),
-    (get_product_id_by_label('C7/WAR'),  get_product_id_by_label('C1/PCB'), 1),
-    (get_product_id_by_label('C7/WAR'),  get_product_id_by_label('C2/PCA'), 1),
-    (get_product_id_by_label('C7/WAR'),  get_product_id_by_label('C2/PCB'), 1);
+    -- Insert plan values for the external plan
+    INSERT INTO plan_values(product_id, plan_id, value) VALUES
+        (get_product_id_by_label('C1/PC-A'), v_plan_id, 10000),
+        (get_product_id_by_label('C1/PC-B'), v_plan_id, 15000),
+        (get_product_id_by_label('C2/PC-A'), v_plan_id, 20000),
+        (get_product_id_by_label('C2/PC-B'), v_plan_id, 10000),
+        (get_product_id_by_label('C3/SU-A'),  v_plan_id, 5000),
+        (get_product_id_by_label('C3/MB'),   v_plan_id, 1000),
+        (get_product_id_by_label('C4/CPS'),  v_plan_id, 2000),
+        (get_product_id_by_label('C5/RAM'), v_plan_id, 10000),
+        (get_product_id_by_label('C6/MG'),   v_plan_id, 5000);
+END $$;
 
 -- Drop the helper function after use
 DROP FUNCTION IF EXISTS get_product_id_by_label(TEXT);
